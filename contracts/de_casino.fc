@@ -58,7 +58,9 @@ const int error::invalid_amount = 33;
     if (op == op::participate) {
         throw_unless(error::invalid_amount, msg_value >= min_participation_amount);
         next_round_amount += msg_value;
-        next_round_users~dict_set_builder(ADDRESS_SIZE,index,value);
+
+        next_round_amount~dict_get?(dict,key_len,index);
+        next_round_users~dict_set_builder(ADDRESS_SIZE,pack_address(whitelist_address),begin_cell().store_int(-1, 1));
         ;; int increase_by = in_msg_body~load_uint(32);
         ;; ctx_counter += increase_by;
         save_data();
