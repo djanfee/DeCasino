@@ -1,41 +1,22 @@
 #include "imports/stdlib.fc";
 
-const op::participate = "op::participate"c; ;; participate in the next round activity
+const op::increase = "op::increase"c; ;; create an opcode from string using the "c" prefix, this results in 0x7e8764ef opcode in this case
 
 ;; storage variables
 
 ;; id is required to be able to create different instances of counters
 ;; since addresses in TON depend on the initial state of the contract
 global int ctx_id;
-global cell present_round_users; ;; list of users participating in this round
-global cell next_round_users; ;; list of users who will participate in the next round
-global cell withdrawn_users; ;; list of users who withdrawn and will not participate in the next round
-global int min_participation_amount; ;; minimum amount of tokens a user needs to participate in the next round
-global int next_round_amount; ;; amount of tokens in the next round
-
-;; here is user data
-global cell user_data; ;; data of a user
-global int user_amount; ;; amount of tokens a user has participated in the current round
-
-const int error::invalid_amount = 33;
+global int ctx_counter;
 
 ;; load_data populates storage variables using stored data
 () load_data() impure {
     var ds = get_data().begin_parse();
 
     ctx_id = ds~load_uint(32);
-    ;; todo: add other storage variables
+    ctx_counter = ds~load_uint(32);
 
     ds.end_parse();
-}
-
-() load_user_data(slice sender_address) impure {
-    (user_data, int found) = next_round_users~dict_get?(ADDRESS_SIZE,pack_address(sender_address));
-    if (~found) {
-        user_amount = 0;
-    } else {
-        user_amount = user_data~load_uint(64);
-    }
 }
 
 ;; save_data stores storage variables as a cell into persistent storage
@@ -43,6 +24,7 @@ const int error::invalid_amount = 33;
     set_data(
         begin_cell()
             .store_uint(ctx_id, 32)
+            .store_uint(ctx_counter, 32)
             .end_cell()
     );
 }
@@ -59,28 +41,14 @@ const int error::invalid_amount = 33;
         return ();
     }
 
-    slice sender_address = cs~load_msg_addr();
-
     load_data(); ;; here we populate the storage variables
-
-    load_user_data(sender_address); ;; here we populate user variables
 
     int op = in_msg_body~load_uint(32); ;; by convention, the first 32 bits of incoming message is the op
     int query_id = in_msg_body~load_uint(64); ;; also by convention, the next 64 bits contain the "query id", although this is not always the case
 
-    if (op == op::participate) {
-        throw_unless(error::invalid_amount, msg_value >= min_participation_amount);
-        next_round_amount += msg_value;
-
-        if (~found) {
-            user_data = begin_cell().store_uint(msg_value, 64).end_cell();
-            next_round_users~dict_set_builder(ADDRESS_SIZE,pack_address(sender_address),user_data);
-        } else {
-            next_round_users~dict_set_builder(ADDRESS_SIZE,pack_address(sender_address),begin_cell().store_uint(user_data~load_uint(64) + msg_value, 64));
-        }
-
-        ;; int increase_by = in_msg_body~load_uint(32);
-        ;; ctx_counter += increase_by;
+    if (op == op::increase) {
+        int increase_by = in_msg_body~load_uint(32);
+        ctx_counter += increase_by;
         save_data();
         return ();
     }
@@ -100,27 +68,4 @@ int get_counter() method_id {
 int get_id() method_id {
     load_data();
     return ctx_id;
-}
-
-
-;; address utils
-
-const int ADDRESS_SIZE = 264; ;; 256 + 8
-
-slice pack_address(slice address) inline {
-    (int wc, int address_hash) = parse_std_addr(address);
-    return begin_cell().store_int(wc, 8).store_uint(address_hash, 256).end_cell().begin_parse();
-}
-
-(int, int) unpack_address(slice address) inline {
-    int wc = address~load_int(8);
-    int address_hash = address~load_uint(256);
-    return (wc, address_hash);
-}
-
-(slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
-
-int _is_whitelisted(slice address) inline {
-    (_, int found) = whitelist.dict_get?(ADDRESS_SIZE, pack_address(address));
-    return found;
 }
