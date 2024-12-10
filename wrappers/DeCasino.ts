@@ -11,6 +11,7 @@ export function deCasinoConfigToCell(config: DeCasinoConfig): Cell {
 
 export const Opcodes = {
     increase: 0x7e8764ef,
+    checkAddress: 0x35810314,
 };
 
 export class DeCasino implements Contract {
@@ -51,6 +52,21 @@ export class DeCasino implements Contract {
                 .storeUint(opts.queryID ?? 0, 64)
                 .storeUint(opts.increaseBy, 32)
                 .endCell(),
+        });
+    }
+
+    async sendCheckAddress(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint;
+            queryID?: number;
+        }
+    ) {
+        await provider.internal(via, {
+            value: opts.value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell().storeUint(Opcodes.checkAddress, 32).storeUint(opts.queryID ?? 0, 64).endCell(),
         });
     }
 

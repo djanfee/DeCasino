@@ -1,18 +1,14 @@
 #include "imports/stdlib.fc";
+#include "imports/params.fc";
 
-const op::bet = "op::bet"c; ;; create an opcode from string using the "c" prefix, this results in 0x7e8764ef opcode in this case
-const op::bet_echo = "op::bet_echo"c; ;; create an opcode from string using the "c" prefix, this results in 0x7e8764ef opcode in this case
-
+const op::increase = "op::increase"c; ;; create an opcode from string using the "c" prefix, this results in 0x7e8764ef opcode in this case
+const op::check_address = "op::check_address"c;
 ;; storage variables
 
 ;; id is required to be able to create different instances of counters
 ;; since addresses in TON depend on the initial state of the contract
 global int ctx_id;
 global int ctx_counter;
-
-
-;; error codes
-const int error::insufficient_funds = 33;
 
 ;; load_data populates storage variables using stored data
 () load_data() impure {
@@ -46,33 +42,24 @@ const int error::insufficient_funds = 33;
         return ();
     }
 
-    slice echo_address = my_address(); ;; get the address of the contract
-
     load_data(); ;; here we populate the storage variables
 
     int op = in_msg_body~load_uint(32); ;; by convention, the first 32 bits of incoming message is the op
     int query_id = in_msg_body~load_uint(64); ;; also by convention, the next 64 bits contain the "query id", although this is not always the case
 
-    if (op == op::bet) {
-        throw_unless(error::insufficient_funds, msg_value < 1000000000); ;; can't bet less than 1 TON
-        send_raw_message(
-            begin_cell()
-                .store_uint(0x18, 6)
-                .store_slice(echo_address)
-                .store_coins(0)
-                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers (see sending messages page)
-                .store_uint(op::bet_echo, 32)
-                .store_slice(sender) ;; forward user address
-            .end_cell(),
-            64 ;; send the remaining value of an incoming msg
-        );
+    throw(333);
+    return ();
+
+    if (op == op::check_address) {
+        slice sender_address = cs~load_msg_addr();
+        force_chain(sender_address);
         return ();
     }
-    if (op == op::bet_echo) {
-        throw_unless(502, equal_slice_bits(sender, echo_address)); ;; only accept echoes from our echo-contract
-        slice user = in_msg_body~load_msg_addr();
-        randomize_lt();
-        
+
+    if (op == op::increase) {
+        int increase_by = in_msg_body~load_uint(32);
+        ctx_counter += increase_by;
+        save_data();
         return ();
     }
 

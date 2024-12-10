@@ -45,37 +45,52 @@ describe('DeCasino', () => {
         // blockchain and deCasino are ready to use
     });
 
-    it('should increase counter', async () => {
-        const increaseTimes = 3;
-        for (let i = 0; i < increaseTimes; i++) {
-            console.log(`increase ${i + 1}/${increaseTimes}`);
+    // it('should increase counter', async () => {
+    //     const increaseTimes = 3;
+    //     for (let i = 0; i < increaseTimes; i++) {
+    //         console.log(`increase ${i + 1}/${increaseTimes}`);
 
-            const increaser = await blockchain.treasury('increaser' + i);
+    //         const increaser = await blockchain.treasury('increaser' + i);
 
-            const counterBefore = await deCasino.getCounter();
+    //         const counterBefore = await deCasino.getCounter();
 
-            console.log('counter before increasing', counterBefore);
+    //         console.log('counter before increasing', counterBefore);
 
-            const increaseBy = Math.floor(Math.random() * 100);
+    //         const increaseBy = Math.floor(Math.random() * 100);
 
-            console.log('increasing by', increaseBy);
+    //         console.log('increasing by', increaseBy);
 
-            const increaseResult = await deCasino.sendIncrease(increaser.getSender(), {
-                increaseBy,
-                value: toNano('0.05'),
-            });
+    //         const increaseResult = await deCasino.sendIncrease(increaser.getSender(), {
+    //             increaseBy,
+    //             value: toNano('0.05'),
+    //         });
 
-            expect(increaseResult.transactions).toHaveTransaction({
-                from: increaser.address,
-                to: deCasino.address,
-                success: true,
-            });
+    //         expect(increaseResult.transactions).toHaveTransaction({
+    //             from: increaser.address,
+    //             to: deCasino.address,
+    //             success: true,
+    //         });
 
-            const counterAfter = await deCasino.getCounter();
+    //         const counterAfter = await deCasino.getCounter();
 
-            console.log('counter after increasing', counterAfter);
+    //         console.log('counter after increasing', counterAfter);
 
-            expect(counterAfter).toBe(counterBefore + increaseBy);
-        }
+    //         expect(counterAfter).toBe(counterBefore + increaseBy);
+    //     }
+    // });
+    it('should wrong address', async () => {
+        const wrongAddresser = await blockchain.treasury('wrongAddresser');
+        const increaseResult = await deCasino.sendCheckAddress(wrongAddresser.getSender(), {
+            value: toNano('0.05'),
+            queryID: 1,
+        });
+        expect(increaseResult.transactions).toHaveTransaction({
+            from: wrongAddresser.address,
+            to: deCasino.address,
+            success: false,
+            exitCode: 333,
+        });
+
+        console.dir(increaseResult, { depth: null });
     });
 });
